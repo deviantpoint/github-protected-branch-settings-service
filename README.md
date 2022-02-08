@@ -25,6 +25,7 @@ The service has two primary endpoints (OpenAPI definition for this service can b
     Therefore, branch protection rules would not be applied. To ensure that all new repos have a protected
     branch, this endpoint will add a default [README.md](src/main/resources/repo_default_readme.md) file to empty repositories.
 * **/repo/protect**
+   * This is used primarily for applying branch protection settings to existing repos. See [Protecting Existing Repos](#protecting-existing-repos) for its use.
 
 ____
 
@@ -59,7 +60,7 @@ ____
 
 #### Docker
 
-1. Set the environment variables as described in [Environment Variables](#Environment-Variables). Then run the following commands to run this service in a Docker container:
+1. Set the environment variables as described in [Environment Variables](#b-environment-variables). Then run the following commands to run this service in a Docker container:
 
     ```shell
     docker run --name protected-branch-settings-service -d -p 8080:8080 -e GH_API_TOKEN=${GH_API_TOKEN} -e ALERT_USERS=${ALERT_USERS} bxtp4p/protected-branch-settings
@@ -106,7 +107,7 @@ ____
 The Kubernetes resource manifest files can be found [here](./deployment/kubernetes).
 To deploy them, follow these steps:
 
-1. Open a terminal and set up your [environment variables](#environment-variables).
+1. Open a terminal and set up your [environment variables](#b-environment-variables).
 1. [Clone](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) this repo and navigate to this project's root directory.
 1. Run the following commands to create a Kubernetes Secret and ConfigMap containing the values from the environment variables:
 
