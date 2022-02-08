@@ -1,0 +1,34 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: protected-branch-settings
+spec:
+  selector:
+    matchLabels:
+      app: protected-branch-settings
+  template:
+    metadata:
+      labels:
+        app: protected-branch-settings
+    spec:
+      containers:
+      - name: protected-branch-settings
+        image: bxtp4p/protected-branch-settings
+        env:
+          - name: GH_API_TOKEN
+            valueFrom:
+              secretKeyRef: 
+                name: gh-api-secret
+                key: api_token
+          - name: ALERT_USERS
+            valueFrom:
+              configMapKeyRef:
+                name: alert-users-config
+                key: alert_users
+        resources:
+          limits:
+            memory: "1024Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8080
