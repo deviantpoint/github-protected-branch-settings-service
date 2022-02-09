@@ -54,11 +54,15 @@ with the `repo` scope selected:
 
 To deploy using the Docker or Kubernetes examples below, first set the following environment variables in your shell,
 replacing `<YOUR TOKEN>` with the Github personal access token created earlier
-and `<USERS_TO_ALERT>` with a list of users and/or teams to alert (e.g, `@bxtp4p,@deviantpoint/demo_team`):
+and `<USERS_TO_ALERT>` with a list of users and/or teams to alert (e.g, `@bxtp4p,@deviantpoint/demo_team`).
+
+You also need to specify a `SERVICE_SECRET`, which will be used in the [Webhook configuration](#uc1-github-webhook-configuration-and-usage)
+to ensure only authorized requests are processed.
 
 ```shell
 export GH_API_TOKEN=<YOUR_TOKEN>
 export ALERT_USERS=<USERS_TO_ALERT>
+export SERVICE_SECRET=<SERVICE_SECRET>
 ```
 
 #### Docker
@@ -66,7 +70,7 @@ export ALERT_USERS=<USERS_TO_ALERT>
 1. Set the environment variables as described in [Environment Variables](#b-environment-variables). Then run the following commands to run this service in a Docker container:
 
     ```shell
-    docker run --name protected-branch-settings-service -d -p 8080:8080 -e GH_API_TOKEN=${GH_API_TOKEN} -e ALERT_USERS=${ALERT_USERS} bxtp4p/protected-branch-settings
+    docker run --name protected-branch-settings-service -d -p 8080:8080 -e GH_API_TOKEN=${GH_API_TOKEN} -e ALERT_USERS=${ALERT_USERS} -e SERVICE_SECRET=${SERVICE_SECRET} bxtp4p/protected-branch-settings
     ```
 
 1. Logs can be viewed as follows:
@@ -115,6 +119,8 @@ To deploy them, follow these steps:
    ```shell
    $ kubectl create secret generic gh-api-secret --from-literal=api_token=${GH_API_TOKEN}
    secret/gh-api-secret created
+   $ kubectl create secret generic service-secret --from-literal=service_secret=${SERVICE_SECRET}
+   secret/service-secret created
    $ kubectl create configmap alert-users-config --from-literal=alert_users=${ALERT_USERS}
    configmap/alert-users-config created
    ```
@@ -161,6 +167,7 @@ you must configure the following in the Github [Organization](https://docs.githu
             to allow the webhook data to be sent to the service container that wouldn't otherwise
             be available publicly.
    1. Content type: `application/json`
+   1. Secret: the same value as the `SERVICE_SECRET` set earlier
    1. Events:
       1. Check: `Repositories`
       1. Uncheck: `Pushes`
@@ -193,6 +200,7 @@ used earlier. The full list of environment variables are described in the table 
 |-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | GH_API_TOKEN                  | The personal access token used to connect to the Github API.                                                                                          |
 | ALERT_USERS                   | The users and teams to tag in the repo issue created to document the protection rules applied.                                                        |
+| SERVICE_SECRET                | The secret to use for the service. Used in setting up the Github webhook.                                                                             |
 | REPO_PROTECTION_TEMPLATE_FILE | The file to use to replace the [default protection rules](./src/main/resources/repo_protection_template.json) file.                                   |
 | REPO_ISSUE_BODY_TEMPLATE_FILE | The template file to use to output the body of the issue created. Replaces this [default](src/main/resources/repo_protection_issue.md).               |
 | REPO_DEFAULT_README_FILE      | The template file to use for the default `README` file that is optionally created. Replaces this [default](src/main/resources/repo_default_readme.md) | 
@@ -204,4 +212,9 @@ docker run --name protected-branch-settings-service -d -p 8080:8080 -v /opt/test
 ```
 
 This will mount the contents of the `/opt/test/repo_protection_template_alternate.json` file into `/opt/data/alternate.json` of the container.
-And the `REPO_PROTECTION_TEMPLATE_FILE` environment variable is then used to use the alernate file. 
+And the `REPO_PROTECTION_TEMPLATE_FILE` environment variable is then used to use the alernate file.
+
+## Resources
+
+* <https://gist.github.com/MaximeFrancoeur/bcb7fc2db08c704f322a>
+  * This is used to validate the signature coming from the Github webhook event header `X-Hub-Signature-256`.

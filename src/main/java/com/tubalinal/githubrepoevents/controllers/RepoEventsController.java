@@ -11,15 +11,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,15 +43,67 @@ public class RepoEventsController {
     @Value("${alert_users}")
     private String alertUsers;
 
+    @Value("${service_secret}")
+    private String serviceSecret;
+
 
     @PostMapping("event_callback")
-    public void handleEvent(@RequestBody GithubEvent githubEvent) {
-        if (githubEvent.getAction().equals(GH_EVENT_CREATED)) {
-            LOGGER.info(String.format("Processing event: %s", githubEvent));
-            applyProtectionSettingsToRepo(githubEvent.getRepository());
+    public void handleEvent(@RequestHeader("X-Hub-Signature-256") String githubSignature, @RequestBody String body) throws JsonProcessingException {
+        if (validateSignature(githubSignature, body)) {
+            ObjectMapper mapper = new ObjectMapper();
+            GithubEvent githubEvent = mapper.readValue(body, GithubEvent.class);
+
+            if (githubEvent.getAction().equals(GH_EVENT_CREATED)) {
+                LOGGER.info(String.format("Processing event: %s", githubEvent));
+                applyProtectionSettingsToRepo(githubEvent.getRepository());
+            } else {
+                LOGGER.info(String.format("Ignoring event: %s", githubEvent));
+            }
         } else {
-            LOGGER.info(String.format("Ignoring event: %s", githubEvent));
+            LOGGER.error(String.format("Signature supplied is not valid. Not processing request: %s", body));
         }
+    }
+
+    private boolean validateSignature(String githubSignature, String body) {
+//        https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks
+        try {
+            String expectedSignature = "sha256=" + hmacDigest(body, getServiceSecret(), "HmacSHA256");
+
+            LOGGER.info(String.format("Expected Signature: %s, Actual Signature: %s", expectedSignature, githubSignature));
+
+            return expectedSignature.equals(githubSignature);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public static String hmacDigest(String msg, String keyString, String algo) {
+        //Copied this function from: https://gist.github.com/MaximeFrancoeur/bcb7fc2db08c704f322a
+
+        String digest = null;
+        try {
+            SecretKeySpec key = new SecretKeySpec((keyString).getBytes("UTF-8"), algo);
+            Mac mac = Mac.getInstance(algo);
+            mac.init(key);
+
+            byte[] bytes = mac.doFinal(msg.getBytes(StandardCharsets.UTF_8));
+
+            StringBuffer hash = new StringBuffer();
+            for (int i = 0; i < bytes.length; i++) {
+                String hex = Integer.toHexString(0xFF & bytes[i]);
+                if (hex.length() == 1) {
+                    hash.append('0');
+                }
+                hash.append(hex);
+            }
+            digest = hash.toString();
+        } catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        return digest;
     }
 
     @PostMapping("protect")
@@ -212,5 +266,13 @@ public class RepoEventsController {
 
     public void setAlertUsers(String alertUsers) {
         this.alertUsers = alertUsers;
+    }
+
+    public String getServiceSecret() {
+        return serviceSecret;
+    }
+
+    public void setServiceSecret(String serviceSecret) {
+        this.serviceSecret = serviceSecret;
     }
 }

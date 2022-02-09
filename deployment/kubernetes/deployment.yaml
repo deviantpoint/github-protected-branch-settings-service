@@ -21,6 +21,11 @@ spec:
               secretKeyRef: 
                 name: gh-api-secret
                 key: api_token
+          - name: SERVICE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: service-secret
+                key: service_secret
           - name: ALERT_USERS
             valueFrom:
               configMapKeyRef:
