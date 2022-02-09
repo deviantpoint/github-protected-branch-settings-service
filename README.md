@@ -1,10 +1,12 @@
-# Add Github Protected Branch Settings Service
+# Github Protected Branch Settings Service
+
+## Overview
 
 This is the repository for a java-based REST service that adds [branch protection rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches)
 to a Github repository. Branch protection rules allows you to define rules for your important repository branches that
 govern who can push to or delete branches, if pull requests and/or status checks are required, and other settings.
 
-## Use Cases
+### Use Cases
 
 The service supports the following use cases:
 
@@ -12,8 +14,9 @@ The service supports the following use cases:
 2. Retroactively apply protected branch settings to existing repositories in a Github organization.
 
 The default branch protection rules that this service applies can be found [here](./src/main/resources/repo_protection_template.json).
+This can be overridden with an environment variable.
 
-## Endpoints
+### Endpoints
 
 The service has two primary endpoints (OpenAPI definition for this service can be found at `{service-url}/swagger-ui.html`):
 
@@ -25,15 +28,13 @@ The service has two primary endpoints (OpenAPI definition for this service can b
     Therefore, branch protection rules would not be applied. To ensure that all new repos have a protected
     branch, this endpoint will add a default [README.md](src/main/resources/repo_default_readme.md) file to empty repositories.
 * **/repo/protect**
-   * This is used primarily for applying branch protection settings to existing repos. See [Protecting Existing Repos](#protecting-existing-repos) for its use.
-
-____
-
+   * This is used primarily for applying branch protection settings to existing repos. See [Protecting Existing Repos](#uc2-protecting-existing-repos) for its use.
+   
 ## Getting Started
 
 ### Running the Service
 
-This service can be immediately deployed as a **[Docker]** container or to **Kubernetes**.
+This service can be immediately deployed as a **Docker** container or to **Kubernetes**.
 Each approach is described in subsequent sections.
 
 Before deploying the service, the following prerequisites should be met.
@@ -55,8 +56,6 @@ and `<USERS_TO_ALERT>` with a list of users and/or teams to alert (e.g, `@bxtp4p
 export GH_API_TOKEN=<YOUR_TOKEN>
 export ALERT_USERS=<USERS_TO_ALERT>
 ```
-
-____
 
 #### Docker
 
@@ -98,11 +97,9 @@ ____
    ```
 
 1. The service should now be available on port 8080 (e.g., <http://localhost:8080>).
-1. Proceed to [configuring the webhook](#Github-Webhook Configuration-and-Usage).
+1. Proceed to [configuring the webhook](#uc1-github-webhook-configuration-and-usage).
 
 #### Kubernetes
-
-____
 
 The Kubernetes resource manifest files can be found [here](./deployment/kubernetes).
 To deploy them, follow these steps:
@@ -137,14 +134,15 @@ To deploy them, follow these steps:
 
    The service should now be available on port 8080 on the nodes Kubernetes scheduled the pods on.
 
-1. Proceed to [configuring the webhook](#Github-Webhook Configuration-and-Usage).
+1. Proceed to [configuring the webhook](#uc1-github-webhook-configuration-and-usage).
 
-## Github Webhook Configuration and Usage
+## Use Case Implementation Instructions
+### UC1: Github Webhook Configuration and Usage
 
 In order to use this service to automatically add branch protection rules to newly created repos,
 you must configure the following in the Github [Organization](https://docs.github.com/en/organizations) you want to enable this for.
 
-### Configuration steps
+#### Configuration steps
 
 1. Navigate to your organization's settings page:
 ![Org Settings](./images/org-settings.jpg)
@@ -164,20 +162,42 @@ you must configure the following in the Github [Organization](https://docs.githu
       1. Uncheck: `Pushes`
 ![Manage Webhook](./images/manage-webhook.png)
 
-### Using the Webhook
+#### Using the Webhook
 
 After the webhook is created, you can [create a new repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository) to test if the branch protection rules are applied correctly.
 
-## Protecting Existing Repos
+### UC2: Protecting Existing Repos
 
 If you already have existing repos in your org you'd like to protect,
 you can use the `/repo/protect` endpoint to do so. This endpoint
 expects an array of strings containing the full repo names to protect.
 
-For example, this curl command tries to protect 2 repos, `deviantpoint/demo` and `deviantpoint/repo2`:
+For example, this curl command tries to protect two repositories, `deviantpoint/demo` and `deviantpoint/repo2`:
 
 ```shell
 curl -X POST http://localhost:8080/repo/protect \
    -H 'Content-Type: application/json' \
    -d '["deviantpoint/demo", "deviantpoint/repo2"]'
 ```
+
+## Advanced Configuration 
+
+The service supports additional environment variables in addition to the `GH_API_TOKEN` and `ALERT_USERS` environment variables
+used earlier. The full list of environment variables are described in the table below.
+
+| Environment Variable          | Description                                                                                                                                           | 
+|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| GH_API_TOKEN                  | The personal access token used to connect to the Github API.                                                                                          |
+| ALERT_USERS                   | The users and teams to tag in the repo issue created to document the protection rules applied.                                                        |
+| REPO_PROTECTION_TEMPLATE_FILE | The file to use to replace the [default protection rules](./src/main/resources/repo_protection_template.json) file.                                   |
+| REPO_ISSUE_BODY_TEMPLATE_FILE | The template file to use to output the body of the issue created. Replaces this [default](src/main/resources/repo_protection_issue.md).               |
+| REPO_DEFAULT_README_FILE      | The template file to use for the default `README` file that is optionally created. Replaces this [default](src/main/resources/repo_default_readme.md) | 
+
+For example, to run this service using an alternate set of protection rules, you can run something like:
+
+```shell
+docker run --name protected-branch-settings-service -d -p 8080:8080 -v /opt/test/repo_protection_template_alternate.json:/opt/data/alternate.json -e GH_API_TOKEN=${GH_API_TOKEN} -e ALERT_USERS=${ALERT_USERS} -e REPO_PROTECTION_TEMPLATE_FILE=/opt/data/alternate.json bxtp4p/protected-branch-settings
+```
+
+This will mount the contents of the `/opt/test/repo_protection_template_alternate.json` file into `/opt/data/alternate.json` of the container.
+And the `REPO_PROTECTION_TEMPLATE_FILE` environment variable is then used to use the alernate file. 

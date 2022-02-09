@@ -17,27 +17,46 @@ public class ResourceFileUtil {
     static final String REPO_DEFAULT_README_FILE = "/repo_default_readme.md";
 
     public static String getProtectionTemplateFileContents(){
-        return ResourceFileUtil.getResourceFileContents(REPO_PROTECTION_TEMPLATE_FILE);
+        return getFileFromEnvPathOrResourcePath("REPO_PROTECTION_TEMPLATE_FILE", REPO_PROTECTION_TEMPLATE_FILE);
     }
 
     public static String getRepoIssueTemplateFileBodyContents() {
-        return ResourceFileUtil.getResourceFileContents(REPO_ISSUE_BODY_TEMPLATE_FILE);
+        return getFileFromEnvPathOrResourcePath("REPO_ISSUE_BODY_TEMPLATE_FILE", REPO_ISSUE_BODY_TEMPLATE_FILE);
     }
 
     public static String getRepoIssueTemplateFileContents() {
-        return ResourceFileUtil.getResourceFileContents(REPO_ISSUE_TEMPLATE_FILE);
+        return getFileFromEnvPathOrResourcePath("REPO_ISSUE_TEMPLATE_FILE", REPO_ISSUE_TEMPLATE_FILE);
     }
 
     public static String getRepoDefaultReadmeFileContents() {
-        return ResourceFileUtil.getResourceFileContents(REPO_DEFAULT_README_FILE);
+        return getFileFromEnvPathOrResourcePath("REPO_DEFAULT_README_FILE", REPO_DEFAULT_README_FILE);
     }
 
-    private static String getResourceFileContents(String path) {
+    private static String getFileFromEnvPathOrResourcePath(String envVarPath, String defaultFile) {
+        String file = System.getenv(envVarPath);
+        if (file != null && !file.equals("")) {
+            return ResourceFileUtil.getFileFromEnvironmentPath(file);
+        } else {
+            return ResourceFileUtil.getFileFromResourcePath(defaultFile);
+        }
+    }
+
+    private static String getFileFromResourcePath(String path) {
         try {
-            return Files.readString(Paths.get(
-                            ResourceFileUtil.class.getResource(path).toURI()),
+            return Files.readString(
+                    Paths.get(ResourceFileUtil.class.getResource(path).toURI()),
                     StandardCharsets.UTF_8);
         } catch (IOException | URISyntaxException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private static String getFileFromEnvironmentPath(String path){
+        try {
+            LOGGER.info(path);
+            return Files.readString(Paths.get(path), StandardCharsets.UTF_8);
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return null;
