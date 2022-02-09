@@ -3,7 +3,7 @@
 ## Overview
 
 This is the repository for a java-based REST service that adds [branch protection rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches)
-to a Github repository. Branch protection rules allows you to define rules for your important repository branches that
+to a Github repository. Branch protection rules allow you to define rules for your important repository branches that
 govern who can push to or delete branches, if pull requests and/or status checks are required, and other settings.
 
 ### Use Cases
@@ -14,16 +14,16 @@ The service supports the following use cases:
 2. Retroactively apply protected branch settings to existing repositories in a Github organization.
 
 The default branch protection rules that this service applies can be found [here](./src/main/resources/repo_protection_template.json).
-This can be overridden with an environment variable.
+This default file can be [overridden](#advanced-configuration) with an environment variable.
 
 ### Endpoints
 
 The service has two primary endpoints (OpenAPI definition for this service can be found at `{service-url}/swagger-ui.html`):
 
 * **/repo/event_callback**
-  * This can receive Github webhook `repo` events and if the type is `created`, the service will:
+  * This can receive Github webhook `repo` events and if the `action` type is `created`, the service will:
     * Protect the default branch
-    * Add a new issue to the repo tagging users and teams to the branch protection rules applied
+    * Add a new issue to the repo tagging users and teams to alert them to the branch protection rules applied to the repo
     * **Note:** If a repository is empty when first created, Github will not create a default branch.
     Therefore, branch protection rules would not be applied. To ensure that all new repos have a protected
     branch, this endpoint will add a default [README.md](src/main/resources/repo_default_readme.md) file to empty repositories.
@@ -44,7 +44,11 @@ Before deploying the service, the following prerequisites should be met.
 ##### A. Personal Access Token
 
 Before deploying the service, a Github personal access token is required.
-[Create one now](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token).
+This is used to make authenticated calls to Github APIs. 
+[Create one now](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+with the `repo` scope selected:
+
+![Token scope](./images/oauth-token-scope.png)
 
 ##### B. Environment Variables
 
